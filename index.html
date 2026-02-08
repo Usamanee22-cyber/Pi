@@ -3,200 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Live2D Full Body Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
+    <title>VTuber Body Tracker Pro</title>
+    <!-- การเชื่อมต่อ Library ที่เสถียรที่สุด -->
     <script src="https://cubism.live2d.com/sdk-web/bin/cubismcore/live2dcubismcore.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; background-color: #fce4ec; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #canvas-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        #video-container { position: absolute; bottom: 20px; right: 20px; width: 240px; height: 180px; border-radius: 15px; overflow: hidden; border: 4px solid #f06292; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 10; transition: all 0.3s; }
+        body { margin: 0; background-color: #1a1a1a; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; background: radial-gradient(circle, #ffafbd 0%, #ffc3a0 100%); display: flex; justify-content: center; align-items: center; }
+        #video-container { position: absolute; bottom: 24px; right: 24px; width: 280px; height: 210px; border-radius: 20px; overflow: hidden; border: 4px solid #ffffff; box-shadow: 0 15px 35px rgba(0,0,0,0.3); z-index: 50; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: #000; }
         #video-container.fullscreen { width: 100vw; height: 100vh; bottom: 0; right: 0; border: none; border-radius: 0; }
         video, canvas.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-        .controls { position: absolute; top: 20px; left: 20px; z-index: 20; display: flex; gap: 10px; }
-        .btn { background: #f06292; color: white; padding: 10px 20px; border-radius: 25px; cursor: pointer; border: none; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn:hover { background: #ec407a; transform: scale(1.05); }
-        .status { position: absolute; bottom: 20px; left: 20px; color: #ad1457; background: rgba(255,255,255,0.7); padding: 5px 15px; border-radius: 20px; font-size: 14px; }
-        #loading-screen { position: fixed; inset: 0; background: #fce4ec; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        .heart { color: #f06292; font-size: 50px; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        .ui-panel { position: absolute; top: 24px; left: 24px; z-index: 100; display: flex; flex-direction: column; gap: 12px; }
+        .glass-btn { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 12px 24px; border-radius: 15px; cursor: pointer; font-weight: 600; transition: 0.3s; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .glass-btn:hover { background: rgba(255, 255, 255, 0.4); transform: translateY(-2px); }
+        .status-badge { position: absolute; bottom: 24px; left: 24px; background: rgba(0,0,0,0.6); color: #fff; padding: 8px 16px; border-radius: 30px; font-size: 13px; backdrop-filter: blur(5px); display: flex; align-items: center; gap: 8px; }
+        .dot { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; box-shadow: 0 0 10px #4ade80; }
+        #loader { position: fixed; inset: 0; background: #ffafbd; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; transition: 0.8s; }
+        .loader-icon { width: 80px; height: 80px; border: 6px solid #fff; border-top-color: #ff6b6b; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <div class="heart">♥</div>
-        <div class="mt-4 text-pink-600 font-bold">กำลังโหลดโมเดลจิบิสุดน่ารัก...</div>
+    <div id="loader">
+        <div class="loader-icon"></div>
+        <h2 class="mt-6 text-white text-xl font-bold tracking-wider">กำลังเชื่อมต่อ AI และโมเดล...</h2>
+        <p class="text-white/80 mt-2">โปรดรอประมาณ 10-15 วินาที</p>
     </div>
 
-    <div class="controls">
-        <button class="btn" onclick="toggleView('avatar')">โหมดโมเดล (Avatar)</button>
-        <button class="btn" onclick="toggleView('camera')">โหมดตรวจจับ (Skeleton)</button>
+    <div class="ui-panel">
+        <button class="glass-btn" onclick="setView('avatar')">✨ โหมดตัวละคร (Avatar)</button>
+        <button class="glass-btn" onclick="setView('camera')">🔍 โหมดโครงสร้าง (Skeleton)</button>
     </div>
 
-    <div id="canvas-container">
-        <!-- PixiJS จะเรนเดอร์โมเดลที่นี่ -->
-    </div>
+    <div id="canvas-container"></div>
 
-    <div id="video-container" id="v-container">
-        <video id="input-video" playsinline></video>
+    <div id="video-container">
+        <video id="input-video" playsinline style="display:none"></video>
         <canvas id="output-canvas" class="overlay"></canvas>
     </div>
 
-    <div class="status" id="status-text">ระบบพร้อมทำงาน: กรุณาอนุญาตเข้าถึงกล้อง</div>
+    <div class="status-badge">
+        <div class="dot" id="status-dot"></div>
+        <span id="status-text">กำลังโหลดระบบ...</span>
+    </div>
 
     <script>
         const videoElement = document.getElementById('input-video');
         const canvasElement = document.getElementById('output-canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const statusText = document.getElementById('status-text');
-        
-        let currentMode = 'avatar';
-        let model;
-        let app;
+        const statusDot = document.getElementById('status-dot');
+        const loader = document.getElementById('loader');
 
-        // ฟังก์ชันสลับหน้าจอ
-        function toggleView(mode) {
+        let app, model, currentMode = 'avatar';
+
+        function setView(mode) {
             currentMode = mode;
-            const vContainer = document.getElementById('video-container');
+            const container = document.getElementById('video-container');
             if (mode === 'camera') {
-                vContainer.classList.add('fullscreen');
-                statusText.innerText = "โหมด: ตรวจจับโครงสร้างร่างกาย (Skeleton Mode)";
+                container.classList.add('fullscreen');
             } else {
-                vContainer.classList.remove('fullscreen');
-                statusText.innerText = "โหมด: Avatar (ขยับตามร่างกาย)";
+                container.classList.remove('fullscreen');
             }
         }
 
-        async function initPixi() {
+        async function init() {
+            // 1. Setup PixiJS
             app = new PIXI.Application({
-                view: document.createElement('canvas'),
                 width: window.innerWidth,
                 height: window.innerHeight,
-                transparent: true,
-                antialias: true,
-                autoStart: true
+                backgroundAlpha: 0,
+                antialias: true
             });
             document.getElementById('canvas-container').appendChild(app.view);
 
-            // ตัวอย่างโมเดลคุณภาพสูง (ใช้ Sample Model จาก Live2D SDK)
-            // หมายเหตุ: ในการใช้งานจริง คุณสามารถเปลี่ยน URL เป็นไฟล์ .model3.json ของคุณได้
-            const modelUrl = 'https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/shizuku/shizuku.model.json';
+            // 2. Load Model (ใช้อันที่ชัวร์ที่สุด)
+            const modelUrl = "https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/rice/rice.model3.json";
             
             try {
                 model = await PIXI.live2d.Live2DModel.from(modelUrl);
                 app.stage.addChild(model);
                 
-                // ตั้งค่าขนาดและตำแหน่งโมเดล
-                const scale = Math.min(app.screen.width / model.width, app.screen.height / model.height) * 0.8;
-                model.scale.set(scale);
+                // จัดขนาด
+                const ratio = Math.min(window.innerWidth / model.width, window.innerHeight / model.height) * 0.7;
+                model.scale.set(ratio);
                 model.anchor.set(0.5, 0.5);
-                model.x = app.screen.width / 2;
-                model.y = app.screen.height / 2;
+                model.x = window.innerWidth / 2;
+                model.y = window.innerHeight / 2 + 50;
 
-                document.getElementById('loading-screen').style.display = 'none';
-                statusText.innerText = "โหลดโมเดลสำเร็จ! เริ่มตรวจจับใบหน้าและร่างกาย...";
-            } catch (e) {
-                console.error(e);
-                statusText.innerText = "เกิดข้อผิดพลาดในการโหลดโมเดล";
+                // 3. Setup Holistic
+                const holistic = new Holistic({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`});
+                holistic.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    refineFaceLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                holistic.onResults(onResults);
+
+                // 4. Start Camera
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => await holistic.send({image: videoElement}),
+                    width: 640,
+                    height: 480
+                });
+
+                await camera.start();
+                
+                // Success!
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 800);
+                statusText.innerText = "ระบบทำงานปกติ (ออนไลน์)";
+                statusDot.style.background = "#4ade80";
+
+            } catch (err) {
+                console.error(err);
+                statusText.innerText = "เกิดข้อผิดพลาดในการโหลด";
+                statusDot.style.background = "#f87171";
             }
         }
 
         function onResults(results) {
-            // ล้าง Canvas สำหรับวาด Skeleton
+            if (canvasElement.width !== videoElement.videoWidth) {
+                canvasElement.width = videoElement.videoWidth;
+                canvasElement.height = videoElement.videoHeight;
+            }
+
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             
-            // วาดภาพจากกล้อง (เฉพาะโหมด Camera)
             if (currentMode === 'camera') {
                 canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-                drawConnectors(canvasCtx, results.poseLandmarks, HOLISTIC_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
-                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 5});
-                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 5});
+                drawConnectors(canvasCtx, results.poseLandmarks, HOLISTIC_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#ff6b6b', lineWidth: 1, radius: 2});
+                drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#4ade80', lineWidth: 1, radius: 2});
             }
 
-            // แมปค่าจาก Tracking ไปยังโมเดล Live2D
             if (model && results.faceLandmarks) {
-                // ตัวอย่างการคุมการมอง (Eye/Head Movement)
-                const nose = results.faceLandmarks[1]; // จุดจมูก
-                const leftEye = results.faceLandmarks[33];
-                const rightEye = results.faceLandmarks[263];
-
-                // คำนวณการหมุนหัว (Yaw, Pitch)
-                const headX = (nose.x - 0.5) * 2; // -1 to 1
-                const headY = (nose.y - 0.5) * -2; // -1 to 1
-
-                model.internalModel.coreModel.setParameterValueById('ParamAngleX', headX * 30);
-                model.internalModel.coreModel.setParameterValueById('ParamAngleY', headY * 30);
+                const core = model.internalModel.coreModel;
                 
-                // ตรวจสอบการกะพริบตา (ใช้ระยะห่างเปลือกตา)
-                const eyeOpenL = Math.abs(results.faceLandmarks[159].y - results.faceLandmarks[145].y) > 0.015 ? 1 : 0;
-                const eyeOpenR = Math.abs(results.faceLandmarks[386].y - results.faceLandmarks[374].y) > 0.015 ? 1 : 0;
+                // Head movement
+                const nose = results.faceLandmarks[1];
+                core.setParameterValueById('ParamAngleX', (nose.x - 0.5) * -60);
+                core.setParameterValueById('ParamAngleY', (nose.y - 0.5) * -60);
                 
-                model.internalModel.coreModel.setParameterValueById('ParamEyeLOpen', eyeOpenL);
-                model.internalModel.coreModel.setParameterValueById('ParamEyeROpen', eyeOpenR);
+                // Eye Blinking
+                const lEye = results.faceLandmarks[159].y - results.faceLandmarks[145].y;
+                const rEye = results.faceLandmarks[386].y - results.faceLandmarks[374].y;
+                core.setParameterValueById('ParamEyeLOpen', lEye > 0.012 ? 1 : 0);
+                core.setParameterValueById('ParamEyeROpen', rEye > 0.012 ? 1 : 0);
 
-                // การขยับปาก (Mouth Open)
-                const mouthDist = Math.abs(results.faceLandmarks[13].y - results.faceLandmarks[14].y);
-                const mouthOpen = Math.min(mouthDist * 10, 1);
-                model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', mouthOpen);
-
-                // การขยับไหล่และตัว
-                if (results.poseLandmarks) {
-                    const shoulderL = results.poseLandmarks[11];
-                    const shoulderR = results.poseLandmarks[12];
-                    const bodyTilt = (shoulderL.y - shoulderR.y) * 50;
-                    model.internalModel.coreModel.setParameterValueById('ParamBodyAngleZ', bodyTilt);
-                }
+                // Mouth
+                const mY = Math.abs(results.faceLandmarks[13].y - results.faceLandmarks[14].y);
+                core.setParameterValueById('ParamMouthOpenY', Math.min(mY * 20, 1));
             }
             canvasCtx.restore();
         }
 
-        // ตั้งค่า Holistic Tracking
-        const holistic = new Holistic({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
-        }});
-
-        holistic.setOptions({
-            modelComplexity: 1,
-            smoothLandmarks: true,
-            enableSegmentation: false,
-            refineFaceLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-
-        holistic.onResults(onResults);
-
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await holistic.send({image: videoElement});
-            },
-            width: 640,
-            height: 480
-        });
-
-        // เริ่มต้นทำงานทั้งหมด
-        window.onload = () => {
-            initPixi();
-            camera.start();
-            
-            // ปรับขนาดแคนวาสเมื่อเปลี่ยนขนาดจอ
-            window.onresize = () => {
-                if(app) {
-                    app.renderer.resize(window.innerWidth, window.innerHeight);
-                    if(model) {
-                        model.x = app.screen.width / 2;
-                        model.y = app.screen.height / 2;
-                    }
+        window.onload = init;
+        window.onresize = () => {
+            if (app) {
+                app.renderer.resize(window.innerWidth, window.innerHeight);
+                if (model) {
+                    model.x = window.innerWidth / 2;
+                    model.y = window.innerHeight / 2 + 50;
                 }
-            };
+            }
         };
     </script>
 </body>
